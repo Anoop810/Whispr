@@ -9,7 +9,7 @@ import {
 
 export function renderHome(navigate) {
   const container = document.createElement('div')
-  container.className = 'mx-auto flex w-full max-w-6xl flex-col gap-8 px-6 py-12'
+  container.className = 'page-container max-w-6xl flex flex-col gap-6 sm:gap-8'
 
   container.innerHTML = `
     <div class="space-y-4 text-center">

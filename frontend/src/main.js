@@ -59,7 +59,7 @@ function buildHeaderMenu(navigate) {
   return createDropdownMenu({
     triggerLabel: 'Menu',
     triggerVariant: 'outline',
-    triggerSize: 'sm',
+    triggerSize: 'default',
     align: 'end',
     width: 'w-52',
     groups: menuGroups,
@@ -73,9 +73,9 @@ function ensureShell(navigate) {
   app.innerHTML = `
     <div class="flex min-h-svh flex-col">
       <header class="app-header shrink-0 border-b">
-        <div class="mx-auto flex h-24 max-w-7xl items-center justify-between px-4 sm:px-8">
-          <button type="button" data-brand class="${buttonClass({ variant: 'ghost', className: 'h-20 shrink-0 px-1' })}">
-            ${logoHtml({ height: 'h-50' })}
+        <div class="mx-auto flex h-16 max-w-7xl items-center justify-between gap-3 px-4 sm:h-20 sm:px-8">
+          <button type="button" data-brand class="${buttonClass({ variant: 'ghost', className: 'h-11 min-h-11 shrink-0 px-1 sm:h-14 sm:min-h-0' })}">
+            ${logoHtml({ height: 'h-9 sm:h-12' })}
           </button>
           <div id="header-menu" class="shrink-0"></div>
         </div>

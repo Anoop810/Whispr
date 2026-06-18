@@ -13,7 +13,7 @@ import { setButtonLoading } from '@/components/ui/spinner'
 
 export function renderTrack(navigate, params = {}) {
   const container = document.createElement('div')
-  container.className = 'mx-auto w-full max-w-5xl px-6 py-6'
+  container.className = 'page-container max-w-5xl'
 
   container.innerHTML = `
     <div class="${cardClass()}">
@@ -22,22 +22,26 @@ export function renderTrack(navigate, params = {}) {
         <p class="${cardDescriptionClass()}">Enter the 6-character token you received when you submitted.</p>
       </div>
       <form class="${cardContentClass('space-y-4')}" id="track-form">
-        <div class="grid grid-cols-1 items-end gap-4 md:grid-cols-[minmax(0,1fr)_auto] md:gap-6">
+        <div class="grid grid-cols-1 items-stretch gap-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end sm:gap-6">
           <div class="${fieldClass()}">
             <label class="${labelClass()}" for="token">Tracking token</label>
             <input
-              class="${inputClass('font-mono uppercase tracking-widest')}"
+              class="${inputClass('font-mono text-lg uppercase tracking-widest sm:text-base')}"
               id="token"
               name="token"
               required
               maxlength="6"
+              inputmode="text"
+              autocapitalize="characters"
+              autocomplete="off"
+              spellcheck="false"
               placeholder="ABC123"
               value="${params.token || ''}"
             />
           </div>
-          <div class="flex gap-3">
-            <button type="button" data-back class="${buttonClass({ variant: 'outline' })}">Back</button>
-            <button type="submit" class="${buttonClass()}">Look up</button>
+          <div class="flex flex-col gap-3 sm:flex-row">
+            <button type="button" data-back class="${buttonClass({ variant: 'outline', className: 'w-full sm:w-auto' })}">Back</button>
+            <button type="submit" class="${buttonClass({ className: 'w-full sm:w-auto' })}">Look up</button>
           </div>
         </div>
         <p id="track-error" class="hidden text-sm text-destructive"></p>

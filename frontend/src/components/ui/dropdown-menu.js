@@ -12,7 +12,7 @@ export function dropdownContentClass(className) {
 
 export function dropdownItemClass({ disabled = false, className } = {}) {
   return cn(
-    'relative flex w-full cursor-pointer select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-accent hover:text-accent-foreground',
+    'relative flex min-h-11 w-full cursor-pointer select-none items-center rounded-sm px-3 py-2.5 text-sm outline-none hover:bg-accent hover:text-accent-foreground sm:min-h-0 sm:px-2 sm:py-1.5',
     disabled && 'pointer-events-none opacity-50',
     className,
   )

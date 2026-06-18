@@ -26,7 +26,7 @@ export function isAdminLoggedIn() {
 
 export function renderAdmin(navigate) {
   const container = document.createElement('div')
-  container.className = 'mx-auto w-full max-w-6xl px-6 py-6'
+  container.className = 'page-container max-w-6xl'
 
   if (!isAdminLoggedIn()) {
     container.appendChild(renderLoginForm(navigate))
@@ -61,9 +61,9 @@ function renderLoginForm(navigate) {
           </div>
         </div>
         <p id="login-error" class="hidden text-sm text-destructive"></p>
-        <div class="flex gap-3">
-          <button type="button" data-back class="${buttonClass({ variant: 'outline' })}">Back</button>
-          <button type="submit" class="${buttonClass({ className: 'flex-1' })}">Sign in</button>
+        <div class="flex flex-col gap-3 sm:flex-row">
+          <button type="button" data-back class="${buttonClass({ variant: 'outline', className: 'w-full sm:w-auto' })}">Back</button>
+          <button type="submit" class="${buttonClass({ className: 'w-full flex-1' })}">Sign in</button>
         </div>
       </form>
     </div>
@@ -106,17 +106,17 @@ function renderDashboard(navigate) {
   wrapper.dataset.adminView = 'active'
 
   wrapper.innerHTML = `
-    <div class="flex flex-wrap items-center justify-between gap-4">
+    <div class="flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
       <div>
-        <h1 class="text-3xl font-bold tracking-tight">Admin dashboard</h1>
-        <p class="text-muted-foreground">Manage complaint status, feedback, and resolution</p>
+        <h1 class="text-2xl font-bold tracking-tight sm:text-3xl">Admin dashboard</h1>
+        <p class="text-sm text-muted-foreground sm:text-base">Manage complaint status, feedback, and resolution</p>
       </div>
-      <div id="admin-actions"></div>
+      <div id="admin-actions" class="w-full sm:w-auto"></div>
     </div>
 
-    <div class="flex gap-2 border-b pb-1">
-      <button type="button" data-tab="active" class="${buttonClass({ variant: 'default', size: 'sm' })}">Active</button>
-      <button type="button" data-tab="resolved" class="${buttonClass({ variant: 'ghost', size: 'sm' })}">Resolved</button>
+    <div class="flex gap-2 overflow-x-auto border-b pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+      <button type="button" data-tab="active" class="${buttonClass({ variant: 'default', size: 'default', className: 'shrink-0' })}">Active</button>
+      <button type="button" data-tab="resolved" class="${buttonClass({ variant: 'ghost', size: 'default', className: 'shrink-0' })}">Resolved</button>
     </div>
 
     <p id="admin-success" class="hidden text-sm text-muted-foreground"></p>
@@ -132,7 +132,8 @@ function renderDashboard(navigate) {
     createDropdownMenu({
       triggerLabel: 'Actions',
       triggerVariant: 'outline',
-      triggerSize: 'sm',
+      triggerSize: 'default',
+      fullWidth: true,
       align: 'end',
       width: 'w-44',
       groups: [
@@ -173,7 +174,8 @@ function switchTab(wrapper, view) {
     const isActive = btn.dataset.tab === view
     btn.className = buttonClass({
       variant: isActive ? 'default' : 'ghost',
-      size: 'sm',
+      size: 'default',
+      className: 'shrink-0',
     })
   })
   loadComplaints(wrapper)
@@ -291,7 +293,8 @@ function createStatusDropdown(wrapper, complaint) {
   return createDropdownMenu({
     triggerLabel: 'Update status',
     triggerVariant: 'outline',
-    triggerSize: 'sm',
+    triggerSize: 'default',
+    fullWidth: true,
     align: 'start',
     width: 'w-48',
     groups: [
@@ -342,8 +345,8 @@ function complaintCard(complaint, { resolved = false } = {}) {
             rows="3"
             placeholder="e.g. Issue has been escalated to facilities. Expected resolution by Friday."
           >${complaint.feedback ? escapeHtml(complaint.feedback) : ''}</textarea>
-          <div class="flex flex-wrap gap-2">
-            <button type="button" data-save-feedback="${complaint.id}" class="${buttonClass({ variant: 'outline', size: 'sm' })}">
+          <div class="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+            <button type="button" data-save-feedback="${complaint.id}" class="${buttonClass({ variant: 'outline', size: 'default', className: 'w-full sm:w-auto' })}">
               Save feedback
             </button>
           </div>

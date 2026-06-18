@@ -44,7 +44,7 @@ function createPriorityDropdown(hiddenInput) {
 
 export function renderSubmit(navigate) {
   const container = document.createElement('div')
-  container.className = 'mx-auto w-full max-w-5xl px-6 py-6'
+  container.className = 'page-container max-w-5xl'
 
   container.innerHTML = `
     <div class="${cardClass()}">
@@ -77,9 +77,9 @@ export function renderSubmit(navigate) {
           </div>
         </div>
         <p id="submit-error" class="hidden text-sm text-destructive"></p>
-        <div class="flex gap-3">
-          <button type="button" data-back class="${buttonClass({ variant: 'outline' })}">Back</button>
-          <button type="submit" class="${buttonClass({ className: 'flex-1' })}">Submit complaint</button>
+        <div class="flex flex-col gap-3 sm:flex-row">
+          <button type="button" data-back class="${buttonClass({ variant: 'outline', className: 'w-full sm:w-auto' })}">Back</button>
+          <button type="submit" class="${buttonClass({ className: 'w-full flex-1' })}">Submit complaint</button>
         </div>
       </form>
       <div id="submit-success" class="${cardContentClass('hidden space-y-3 border-t pt-6')}"></div>
@@ -121,10 +121,10 @@ export function renderSubmit(navigate) {
           </div>
           <div class="rounded-lg border bg-muted/40 p-4">
             <p class="text-sm font-medium">Your tracking token</p>
-            <p class="mt-1 font-mono text-2xl font-bold tracking-widest">${result.token}</p>
+            <p class="mt-1 font-mono text-3xl font-bold tracking-widest sm:text-2xl">${result.token}</p>
           </div>
         </div>
-        <button type="button" data-track class="${buttonClass()}">Track this complaint</button>
+        <button type="button" data-track class="${buttonClass({ className: 'w-full sm:w-auto' })}">Track this complaint</button>
       `
 
       successEl.querySelector('[data-track]').addEventListener('click', () => {
