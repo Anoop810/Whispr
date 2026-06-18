@@ -6,14 +6,27 @@ from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth import authenticate
 
-from .models import Complaint
+from .models import Complaint, Organization, build_staff_username, normalize_organization_name
 from .constants import ACTIVE_STATUSES, ALL_STATUSES, ComplaintStatus
-from .permissions import staff_required_response
+from .permissions import (
+    get_organization_by_name,
+    get_user_organization,
+    staff_organization_response,
+    staff_required_response,
+)
+
+
+def serialize_organization(organization):
+    return {
+        'name': organization.name,
+        'display_name': organization.display_name,
+    }
 
 
 def serialize_complaint(complaint):
     return {
         'id': complaint.id,
+        'organization': serialize_organization(complaint.organization),
         'title': complaint.title,
         'description': complaint.decrypt(complaint.description),
         'department': complaint.department,
@@ -26,29 +39,56 @@ def serialize_complaint(complaint):
     }
 
 
+def resolve_organization_from_request(data):
+    organization_name = data.get('organization', '')
+    organization = get_organization_by_name(organization_name)
+    if not organization:
+        return None, Response(
+            {'detail': 'Organization not found.'},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    return organization, None
+
+
+def get_staff_complaint(request, complaint_id):
+    denied, organization = staff_organization_response(request)
+    if denied:
+        return denied, None
+
+    try:
+        complaint = Complaint.objects.get(pk=complaint_id, organization=organization)
+    except Complaint.DoesNotExist:
+        return Response({'error': 'Complaint not found'}, status=status.HTTP_404_NOT_FOUND), None
+
+    return None, complaint
+
+
 @api_view(['GET', 'POST'])
 @authentication_classes([JWTAuthentication])
 @permission_classes([AllowAny])
 def complaint_list_create(request):
     if request.method == 'GET':
-        denied = staff_required_response(request)
+        denied, organization = staff_organization_response(request)
         if denied:
             return denied
 
         view = request.query_params.get('view', 'active')
+        complaints = Complaint.objects.filter(organization=organization)
         if view == 'resolved':
-            complaints = Complaint.objects.filter(
-                status=ComplaintStatus.RESOLVED
-            ).order_by('-submission_date')
+            complaints = complaints.filter(status=ComplaintStatus.RESOLVED)
         else:
-            complaints = Complaint.objects.filter(
-                status__in=ACTIVE_STATUSES
-            ).order_by('-submission_date')
+            complaints = complaints.filter(status__in=ACTIVE_STATUSES)
 
+        complaints = complaints.order_by('-submission_date')
         return Response([serialize_complaint(c) for c in complaints])
+
+    organization, error = resolve_organization_from_request(request.data)
+    if error:
+        return error
 
     data = request.data
     complaint = Complaint.objects.create(
+        organization=organization,
         title=data.get('title'),
         description=data.get('description'),
         priority=data.get('priority', 'Medium'),
@@ -66,14 +106,9 @@ def complaint_list_create(request):
 @authentication_classes([JWTAuthentication])
 @permission_classes([AllowAny])
 def complaint_detail(request, id):
-    denied = staff_required_response(request)
-    if denied:
-        return denied
-
-    try:
-        complaint = Complaint.objects.get(id=id)
-    except Complaint.DoesNotExist:
-        return Response({'error': 'Complaint not found'}, status=status.HTTP_404_NOT_FOUND)
+    error, complaint = get_staff_complaint(request, id)
+    if error:
+        return error
 
     if request.method == 'GET':
         return Response(serialize_complaint(complaint))
@@ -96,20 +131,29 @@ def complaint_detail(request, id):
 @api_view(['POST'])
 @permission_classes([AllowAny])
 def admin_login(request):
+    organization, error = resolve_organization_from_request(request.data)
+    if error:
+        return error
+
     username = (request.data.get('username') or '').strip()
     password = request.data.get('password') or ''
 
-    user = authenticate(username=username, password=password)
+    user = authenticate(
+        username=build_staff_username(organization.name, username),
+        password=password,
+    )
+    user_org = get_user_organization(user) if user else None
 
-    if user is not None and user.is_staff:
+    if user is not None and user.is_staff and user_org and user_org.id == organization.id:
         refresh = RefreshToken.for_user(user)
         return Response({
             'success': True,
             'access': str(refresh.access_token),
+            'organization': serialize_organization(organization),
         })
 
     return Response(
-        {'detail': 'Invalid credentials or insufficient permissions.'},
+        {'detail': 'Invalid organization, credentials, or permissions.'},
         status=status.HTTP_401_UNAUTHORIZED,
     )
 
@@ -119,7 +163,7 @@ def admin_login(request):
 def complaint_by_token(request):
     token = request.data.get('token')
     try:
-        complaint = Complaint.objects.get(token=token)
+        complaint = Complaint.objects.select_related('organization').get(token=token)
         return Response(serialize_complaint(complaint), status=200)
     except Complaint.DoesNotExist:
         return Response({'error': 'Complaint not found'}, status=404)
@@ -129,14 +173,9 @@ def complaint_by_token(request):
 @authentication_classes([JWTAuthentication])
 @permission_classes([AllowAny])
 def complaint_feedback(request, id):
-    denied = staff_required_response(request)
-    if denied:
-        return denied
-
-    try:
-        complaint = Complaint.objects.get(pk=id)
-    except Complaint.DoesNotExist:
-        return Response({'error': 'Complaint not found'}, status=status.HTTP_404_NOT_FOUND)
+    error, complaint = get_staff_complaint(request, id)
+    if error:
+        return error
 
     feedback = request.data.get('feedback')
     if feedback is None or not str(feedback).strip():
@@ -156,14 +195,9 @@ def complaint_feedback(request, id):
 @authentication_classes([JWTAuthentication])
 @permission_classes([AllowAny])
 def update_complaint_status(request, id):
-    denied = staff_required_response(request)
-    if denied:
-        return denied
-
-    try:
-        complaint = Complaint.objects.get(pk=id)
-    except Complaint.DoesNotExist:
-        return Response({'error': 'Complaint not found'}, status=status.HTTP_404_NOT_FOUND)
+    error, complaint = get_staff_complaint(request, id)
+    if error:
+        return error
 
     status_update = request.data.get('status')
     feedback = request.data.get('feedback')

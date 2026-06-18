@@ -1,5 +1,6 @@
 const API_BASE = (import.meta.env.VITE_API_URL || '/api').replace(/\/+$/, '')
 export const ADMIN_TOKEN_KEY = 'whispr_admin_token'
+export const ADMIN_ORG_KEY = 'whispr_admin_org'
 
 function authHeaders() {
   const token = sessionStorage.getItem(ADMIN_TOKEN_KEY)
@@ -21,9 +22,10 @@ async function request(path, options = {}, { auth = false } = {}) {
 
   if (response.status === 401 && auth) {
     sessionStorage.removeItem(ADMIN_TOKEN_KEY)
+    sessionStorage.removeItem(ADMIN_ORG_KEY)
   }
 
-    if (!response.ok) {
+  if (!response.ok) {
     const fallback = response.status === 401
       ? 'Invalid credentials or insufficient permissions.'
       : response.status >= 500
@@ -76,10 +78,10 @@ export const api = {
     }, { auth: true })
   },
 
-  adminLogin(username, password) {
+  adminLogin(organization, username, password) {
     return request('/admin_login/', {
       method: 'POST',
-      body: JSON.stringify({ username, password }),
+      body: JSON.stringify({ organization, username, password }),
     })
   },
 }

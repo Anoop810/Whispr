@@ -14,11 +14,12 @@ import {
   cardHeaderClass,
   cardTitleClass,
 } from '@/components/ui/card'
-import { inputClass, labelClass, textareaClass, fieldClass } from '@/components/ui/input'
+import { labelClass, textareaClass, fieldClass, inputClass } from '@/components/ui/input'
+import { createPasswordField } from '@/components/ui/password-input'
 import { setButtonLoading } from '@/components/ui/spinner'
 import { createDropdownMenu } from '@/components/ui/dropdown-menu'
 
-import { ADMIN_TOKEN_KEY } from '@/lib/api'
+import { ADMIN_TOKEN_KEY, ADMIN_ORG_KEY } from '@/lib/api'
 import { escapeHtml } from '@/lib/utils'
 
 export function isAdminLoggedIn() {
@@ -27,6 +28,17 @@ export function isAdminLoggedIn() {
 
 export function clearAdminSession() {
   sessionStorage.removeItem(ADMIN_TOKEN_KEY)
+  sessionStorage.removeItem(ADMIN_ORG_KEY)
+}
+
+export function getAdminOrganization() {
+  const raw = sessionStorage.getItem(ADMIN_ORG_KEY)
+  if (!raw) return null
+  try {
+    return JSON.parse(raw)
+  } catch {
+    return null
+  }
 }
 
 export function renderAdmin(navigate) {
@@ -52,18 +64,19 @@ function renderLoginForm(navigate) {
           ${logoHtml({ height: 'h-10' })}
         </div>
         <h1 class="${cardTitleClass()}">Admin login</h1>
-        <p class="${cardDescriptionClass()}">Sign in with your staff credentials to manage complaints.</p>
+        <p class="${cardDescriptionClass()}">Sign in with your organization name and staff credentials.</p>
       </div>
       <form class="${cardContentClass('space-y-4')}" id="admin-login-form">
+        <div class="${fieldClass()}">
+          <label class="${labelClass()}" for="organization">Organization</label>
+          <input class="${inputClass()}" id="organization" name="organization" required placeholder="e.g. acme-school" autocomplete="organization" />
+        </div>
         <div class="grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-6">
           <div class="${fieldClass()}">
             <label class="${labelClass()}" for="username">Username</label>
             <input class="${inputClass()}" id="username" name="username" required autocomplete="username" />
           </div>
-          <div class="${fieldClass()}">
-            <label class="${labelClass()}" for="password">Password</label>
-            <input class="${inputClass()}" id="password" name="password" type="password" required autocomplete="current-password" />
-          </div>
+          <div id="password-field-mount"></div>
         </div>
         <p id="login-error" class="hidden text-sm text-destructive"></p>
         <div class="flex flex-col gap-3 sm:flex-row">
@@ -73,6 +86,15 @@ function renderLoginForm(navigate) {
       </form>
     </div>
   `
+
+  wrapper.querySelector('#password-field-mount').replaceWith(
+    createPasswordField({
+      id: 'password',
+      name: 'password',
+      required: true,
+      autocomplete: 'current-password',
+    }),
+  )
 
   wrapper.querySelector('[data-back]').addEventListener('click', () => navigate('home'))
 
@@ -88,8 +110,13 @@ function renderLoginForm(navigate) {
     setButtonLoading(submitButton, { loading: true, label: 'Sign in', loadingLabel: 'Signing in' })
 
     try {
-      const result = await api.adminLogin(formData.get('username'), formData.get('password'))
+      const result = await api.adminLogin(
+        formData.get('organization'),
+        formData.get('username'),
+        formData.get('password'),
+      )
       sessionStorage.setItem(ADMIN_TOKEN_KEY, result.access)
+      sessionStorage.setItem(ADMIN_ORG_KEY, JSON.stringify(result.organization))
       navigate('admin')
     } catch (error) {
       const isNetworkError = error.name === 'TypeError' && error.message.includes('fetch')
@@ -106,6 +133,9 @@ function renderLoginForm(navigate) {
 }
 
 function renderDashboard(navigate) {
+  const organization = getAdminOrganization()
+  const orgLabel = organization?.display_name || organization?.name || 'Organization'
+
   const wrapper = document.createElement('div')
   wrapper.className = 'space-y-6'
   wrapper.dataset.adminView = 'active'
@@ -113,6 +143,7 @@ function renderDashboard(navigate) {
   wrapper.innerHTML = `
     <div class="flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
       <div>
+        <p class="text-sm font-medium text-muted-foreground">${escapeHtml(orgLabel)}</p>
         <h1 class="text-2xl font-bold tracking-tight sm:text-3xl">Admin dashboard</h1>
         <p class="text-sm text-muted-foreground sm:text-base">Manage complaint status, feedback, and resolution</p>
       </div>

@@ -58,6 +58,10 @@ export function renderSubmit(navigate) {
         <div class="grid grid-cols-1 items-stretch gap-4 md:grid-cols-2 md:gap-6">
           <div class="grid content-start gap-4">
             <div class="${fieldClass()}">
+              <label class="${labelClass()}" for="organization">Organization</label>
+              <input class="${inputClass()}" id="organization" name="organization" required placeholder="e.g. acme-school" />
+            </div>
+            <div class="${fieldClass()}">
               <label class="${labelClass()}" for="title">Title</label>
               <input class="${inputClass()}" id="title" name="title" required placeholder="Brief summary" />
             </div>
@@ -105,6 +109,7 @@ export function renderSubmit(navigate) {
 
     try {
       const result = await api.createComplaint({
+        organization: formData.get('organization'),
         title: formData.get('title'),
         department: formData.get('department') || '',
         priority: formData.get('priority'),

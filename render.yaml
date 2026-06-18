@@ -35,3 +35,5 @@ services:
         sync: false
       - key: DJANGO_SUPERUSER_PASSWORD
         sync: false
+      - key: DJANGO_SUPERUSER_ORGANIZATION
+        sync: false

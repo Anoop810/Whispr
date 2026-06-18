@@ -100,12 +100,16 @@ function renderComplaintDetails(complaint) {
   const description = escapeHtml(complaint.description)
   const department = complaint.department ? escapeHtml(complaint.department) : ''
   const feedback = complaint.feedback ? escapeHtml(complaint.feedback) : ''
+  const organization = complaint.organization
+    ? escapeHtml(complaint.organization.display_name || complaint.organization.name)
+    : ''
 
   return `
     <div class="grid gap-6 md:grid-cols-2">
       <div class="space-y-3">
         <div class="space-y-1">
           <h2 class="text-lg font-semibold">${title}</h2>
+          ${organization ? `<p class="text-sm text-muted-foreground">${organization}</p>` : ''}
           <div class="flex flex-wrap gap-2">
             <span class="${statusBadgeClass(complaint.status)}">${status}</span>
             <span class="${priorityBadgeClass(complaint.priority)}">${priority} priority</span>
