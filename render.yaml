@@ -1,0 +1,31 @@
+databases:
+  - name: whispr-db
+    plan: free
+    databaseName: whispr
+    user: whispr
+
+services:
+  - type: web
+    name: whispr-api
+    runtime: python
+    plan: free
+    rootDir: complaint
+    buildCommand: chmod +x build.sh && ./build.sh
+    startCommand: python -m gunicorn complaint.wsgi:application --bind 0.0.0.0:$PORT
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.11.11"
+      - key: DEBUG
+        value: "False"
+      - key: SECRET_KEY
+        generateValue: true
+      - key: DATABASE_URL
+        fromDatabase:
+          name: whispr-db
+          property: connectionString
+      - key: FERNET_KEY
+        sync: false
+      - key: ALLOWED_HOSTS
+        sync: false
+      - key: CORS_ALLOWED_ORIGINS
+        sync: false
