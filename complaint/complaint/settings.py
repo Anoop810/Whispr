@@ -20,11 +20,17 @@ SECRET_KEY = os.environ.get(
 
 DEBUG = os.environ.get('DEBUG', 'True').lower() in ('true', '1', 'yes')
 
-ALLOWED_HOSTS = [
+_allowed_hosts = [
     host.strip()
     for host in os.environ.get('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
     if host.strip()
 ]
+
+_render_host = os.environ.get('RENDER_EXTERNAL_HOSTNAME', '').strip()
+if _render_host and _render_host not in _allowed_hosts:
+    _allowed_hosts.append(_render_host)
+
+ALLOWED_HOSTS = _allowed_hosts
 
 INSTALLED_APPS = [
     'django.contrib.admin',
