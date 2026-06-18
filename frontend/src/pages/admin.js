@@ -18,10 +18,15 @@ import { inputClass, labelClass, textareaClass, fieldClass } from '@/components/
 import { setButtonLoading } from '@/components/ui/spinner'
 import { createDropdownMenu } from '@/components/ui/dropdown-menu'
 
-const ADMIN_KEY = 'whispr_admin'
+import { ADMIN_TOKEN_KEY } from '@/lib/api'
+import { escapeHtml } from '@/lib/utils'
 
 export function isAdminLoggedIn() {
-  return sessionStorage.getItem(ADMIN_KEY) === 'true'
+  return Boolean(sessionStorage.getItem(ADMIN_TOKEN_KEY))
+}
+
+export function clearAdminSession() {
+  sessionStorage.removeItem(ADMIN_TOKEN_KEY)
 }
 
 export function renderAdmin(navigate) {
@@ -83,14 +88,14 @@ function renderLoginForm(navigate) {
     setButtonLoading(submitButton, { loading: true, label: 'Sign in', loadingLabel: 'Signing in' })
 
     try {
-      await api.adminLogin(formData.get('username'), formData.get('password'))
-      sessionStorage.setItem(ADMIN_KEY, 'true')
+      const result = await api.adminLogin(formData.get('username'), formData.get('password'))
+      sessionStorage.setItem(ADMIN_TOKEN_KEY, result.access)
       navigate('admin')
     } catch (error) {
-      const isNetworkError = error.message === 'Request failed' || error.message.includes('fetch')
+      const isNetworkError = error.name === 'TypeError' && error.message.includes('fetch')
       errorEl.textContent = isNetworkError
-        ? 'Cannot reach the server. Make sure Django is running on port 8000.'
-        : 'Invalid credentials or insufficient permissions.'
+        ? 'Cannot reach the server. Check your connection and try again.'
+        : error.message
       errorEl.classList.remove('hidden')
     } finally {
       setButtonLoading(submitButton, { loading: false, label: 'Sign in' })
@@ -141,8 +146,8 @@ function renderDashboard(navigate) {
           label: 'Dashboard',
           items: [
             { label: 'Home', onSelect: () => navigate('home') },
-            { label: 'Active tickets', onSelect: () => switchTab(wrapper, 'active') },
-            { label: 'Resolved tickets', onSelect: () => switchTab(wrapper, 'resolved') },
+            { label: 'Active tickets', onSelect: () => switchTab(wrapper, 'active', navigate) },
+            { label: 'Resolved tickets', onSelect: () => switchTab(wrapper, 'resolved', navigate) },
           ],
         },
         {
@@ -150,7 +155,7 @@ function renderDashboard(navigate) {
             {
               label: 'Sign out',
               onSelect: () => {
-                sessionStorage.removeItem(ADMIN_KEY)
+                clearAdminSession()
                 navigate('admin')
               },
             },
@@ -161,14 +166,14 @@ function renderDashboard(navigate) {
   )
 
   wrapper.querySelectorAll('[data-tab]').forEach((tab) => {
-    tab.addEventListener('click', () => switchTab(wrapper, tab.dataset.tab))
+    tab.addEventListener('click', () => switchTab(wrapper, tab.dataset.tab, navigate))
   })
 
-  loadComplaints(wrapper)
+  loadComplaints(wrapper, navigate)
   return wrapper
 }
 
-function switchTab(wrapper, view) {
+function switchTab(wrapper, view, navigate) {
   wrapper.dataset.adminView = view
   wrapper.querySelectorAll('[data-tab]').forEach((btn) => {
     const isActive = btn.dataset.tab === view
@@ -178,7 +183,7 @@ function switchTab(wrapper, view) {
       className: 'shrink-0',
     })
   })
-  loadComplaints(wrapper)
+  loadComplaints(wrapper, navigate)
 }
 
 function getFeedbackValue(wrapper, id) {
@@ -202,7 +207,7 @@ function showError(wrapper, message) {
   errorEl.classList.remove('hidden')
 }
 
-async function loadComplaints(wrapper) {
+async function loadComplaints(wrapper, navigate) {
   const listEl = wrapper.querySelector('#complaints-list')
   const view = wrapper.dataset.adminView || 'active'
   const isResolvedView = view === 'resolved'
@@ -239,18 +244,22 @@ async function loadComplaints(wrapper) {
       complaints.forEach((complaint) => {
         const mount = listEl.querySelector(`[data-status-dropdown="${complaint.id}"]`)
         if (mount) {
-          mount.appendChild(createStatusDropdown(wrapper, complaint))
+          mount.appendChild(createStatusDropdown(wrapper, complaint, navigate))
         }
       })
-      bindActiveCardActions(wrapper, listEl)
+      bindActiveCardActions(wrapper, listEl, navigate)
     }
   } catch (error) {
+    if (!isAdminLoggedIn()) {
+      navigate('admin')
+      return
+    }
     listEl.innerHTML = ''
     showError(wrapper, error.message)
   }
 }
 
-function bindActiveCardActions(wrapper, listEl) {
+function bindActiveCardActions(wrapper, listEl, navigate) {
   listEl.querySelectorAll('[data-save-feedback]').forEach((button) => {
     button.addEventListener('click', async () => {
       const id = button.dataset.saveFeedback
@@ -266,7 +275,7 @@ function bindActiveCardActions(wrapper, listEl) {
       try {
         await api.saveFeedback(id, feedback)
         showSuccess(wrapper, `Feedback saved for complaint #${id}.`)
-        await loadComplaints(wrapper)
+        await loadComplaints(wrapper, navigate)
       } catch (error) {
         showError(wrapper, error.message)
         setButtonLoading(button, { loading: false, label: 'Save feedback' })
@@ -275,19 +284,19 @@ function bindActiveCardActions(wrapper, listEl) {
   })
 }
 
-async function updateComplaintStatus(wrapper, id, newStatus) {
+async function updateComplaintStatus(wrapper, id, newStatus, navigate) {
   const feedback = getFeedbackValue(wrapper, id)
 
   try {
     await api.updateComplaintStatus(id, newStatus, feedback)
     showSuccess(wrapper, `Complaint #${id} marked as "${newStatus}".`)
-    await loadComplaints(wrapper)
+    await loadComplaints(wrapper, navigate)
   } catch (error) {
     showError(wrapper, error.message)
   }
 }
 
-function createStatusDropdown(wrapper, complaint) {
+function createStatusDropdown(wrapper, complaint, navigate) {
   const statusOptions = [...ACTIVE_STATUS_OPTIONS, 'Resolved']
 
   return createDropdownMenu({
@@ -304,19 +313,11 @@ function createStatusDropdown(wrapper, complaint) {
           label: status,
           disabled: complaint.status === status,
           shortcut: complaint.status === status ? '✓' : '',
-          onSelect: () => updateComplaintStatus(wrapper, complaint.id, status),
+          onSelect: () => updateComplaintStatus(wrapper, complaint.id, status, navigate),
         })),
       },
     ],
   })
-}
-
-function escapeHtml(text) {
-  return String(text)
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
-    .replaceAll('"', '&quot;')
 }
 
 function statusDropdownMount(complaint) {

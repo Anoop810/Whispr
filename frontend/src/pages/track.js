@@ -1,4 +1,5 @@
 import { api } from '@/lib/api'
+import { escapeHtml } from '@/lib/utils'
 import { buttonClass } from '@/components/ui/button'
 import { priorityBadgeClass, statusBadgeClass, spinnerBadgeHtml } from '@/components/ui/badge'
 import {
@@ -36,7 +37,7 @@ export function renderTrack(navigate, params = {}) {
               autocomplete="off"
               spellcheck="false"
               placeholder="ABC123"
-              value="${params.token || ''}"
+              value="${escapeHtml(params.token || '')}"
             />
           </div>
           <div class="flex flex-col gap-3 sm:flex-row">
@@ -92,16 +93,22 @@ export function renderTrack(navigate, params = {}) {
 }
 
 function renderComplaintDetails(complaint) {
-  const date = new Date(complaint.submission_date).toLocaleString()
+  const date = escapeHtml(new Date(complaint.submission_date).toLocaleString())
+  const title = escapeHtml(complaint.title)
+  const status = escapeHtml(complaint.status)
+  const priority = escapeHtml(complaint.priority)
+  const description = escapeHtml(complaint.description)
+  const department = complaint.department ? escapeHtml(complaint.department) : ''
+  const feedback = complaint.feedback ? escapeHtml(complaint.feedback) : ''
 
   return `
     <div class="grid gap-6 md:grid-cols-2">
       <div class="space-y-3">
         <div class="space-y-1">
-          <h2 class="text-lg font-semibold">${complaint.title}</h2>
+          <h2 class="text-lg font-semibold">${title}</h2>
           <div class="flex flex-wrap gap-2">
-            <span class="${statusBadgeClass(complaint.status)}">${complaint.status}</span>
-            <span class="${priorityBadgeClass(complaint.priority)}">${complaint.priority} priority</span>
+            <span class="${statusBadgeClass(complaint.status)}">${status}</span>
+            <span class="${priorityBadgeClass(complaint.priority)}">${priority} priority</span>
           </div>
         </div>
         <dl class="grid gap-3 text-sm">
@@ -109,10 +116,10 @@ function renderComplaintDetails(complaint) {
             <dt class="text-muted-foreground">Submitted</dt>
             <dd>${date}</dd>
           </div>
-          ${complaint.department ? `
+          ${department ? `
             <div>
               <dt class="text-muted-foreground">Department</dt>
-              <dd>${complaint.department}</dd>
+              <dd>${department}</dd>
             </div>
           ` : ''}
         </dl>
@@ -120,12 +127,12 @@ function renderComplaintDetails(complaint) {
       <div class="space-y-3 text-sm">
         <div>
           <p class="text-muted-foreground">Description</p>
-          <p class="mt-1 whitespace-pre-wrap">${complaint.description}</p>
+          <p class="mt-1 whitespace-pre-wrap">${description}</p>
         </div>
-        ${complaint.feedback ? `
+        ${feedback ? `
           <div class="rounded-lg border bg-muted/40 p-3">
             <p class="font-medium">Admin feedback</p>
-            <p class="mt-1 whitespace-pre-wrap text-muted-foreground">${complaint.feedback}</p>
+            <p class="mt-1 whitespace-pre-wrap text-muted-foreground">${feedback}</p>
           </div>
         ` : `
           <p class="text-muted-foreground">No feedback yet. Check back later.</p>

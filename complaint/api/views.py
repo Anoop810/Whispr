@@ -1,9 +1,14 @@
-from rest_framework.decorators import api_view
+from rest_framework.decorators import api_view, authentication_classes, permission_classes
+from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework import status
+from rest_framework_simplejwt.authentication import JWTAuthentication
+from rest_framework_simplejwt.tokens import RefreshToken
+from django.contrib.auth import authenticate
+
 from .models import Complaint
 from .constants import ACTIVE_STATUSES, ALL_STATUSES, ComplaintStatus
-from django.contrib.auth import authenticate
+from .permissions import staff_required_response
 
 
 def serialize_complaint(complaint):
@@ -22,8 +27,14 @@ def serialize_complaint(complaint):
 
 
 @api_view(['GET', 'POST'])
+@authentication_classes([JWTAuthentication])
+@permission_classes([AllowAny])
 def complaint_list_create(request):
     if request.method == 'GET':
+        denied = staff_required_response(request)
+        if denied:
+            return denied
+
         view = request.query_params.get('view', 'active')
         if view == 'resolved':
             complaints = Complaint.objects.filter(
@@ -36,24 +47,29 @@ def complaint_list_create(request):
 
         return Response([serialize_complaint(c) for c in complaints])
 
-    elif request.method == 'POST':
-        data = request.data
-        complaint = Complaint.objects.create(
-            title=data.get('title'),
-            description=data.get('description'),
-            priority=data.get('priority', 'Medium'),
-            is_anonymous=data.get('is_anonymous', True),
-            feedback=data.get('feedback', ''),
-            department=data.get('department', ''),
-        )
-        return Response(
-            {'message': 'Complaint created', 'id': complaint.id, 'token': complaint.token},
-            status=status.HTTP_201_CREATED,
-        )
+    data = request.data
+    complaint = Complaint.objects.create(
+        title=data.get('title'),
+        description=data.get('description'),
+        priority=data.get('priority', 'Medium'),
+        is_anonymous=data.get('is_anonymous', True),
+        feedback=data.get('feedback', ''),
+        department=data.get('department', ''),
+    )
+    return Response(
+        {'message': 'Complaint created', 'id': complaint.id, 'token': complaint.token},
+        status=status.HTTP_201_CREATED,
+    )
 
 
 @api_view(['GET', 'PUT', 'DELETE'])
+@authentication_classes([JWTAuthentication])
+@permission_classes([AllowAny])
 def complaint_detail(request, id):
+    denied = staff_required_response(request)
+    if denied:
+        return denied
+
     try:
         complaint = Complaint.objects.get(id=id)
     except Complaint.DoesNotExist:
@@ -62,7 +78,7 @@ def complaint_detail(request, id):
     if request.method == 'GET':
         return Response(serialize_complaint(complaint))
 
-    elif request.method == 'PUT':
+    if request.method == 'PUT':
         data = request.data
         complaint.title = data.get('title', complaint.title)
         complaint.description = data.get('description', complaint.decrypt(complaint.description))
@@ -73,25 +89,33 @@ def complaint_detail(request, id):
         complaint.save()
         return Response({'message': 'Complaint updated'})
 
-    elif request.method == 'DELETE':
-        complaint.delete()
-        return Response({'message': 'Complaint deleted'})
+    complaint.delete()
+    return Response({'message': 'Complaint deleted'})
 
 
 @api_view(['POST'])
+@permission_classes([AllowAny])
 def admin_login(request):
-    username = request.data.get('username')
-    password = request.data.get('password')
+    username = (request.data.get('username') or '').strip()
+    password = request.data.get('password') or ''
 
     user = authenticate(username=username, password=password)
 
     if user is not None and user.is_staff:
-        return Response({'success': True})
-    else:
-        return Response({'success': False}, status=401)
+        refresh = RefreshToken.for_user(user)
+        return Response({
+            'success': True,
+            'access': str(refresh.access_token),
+        })
+
+    return Response(
+        {'detail': 'Invalid credentials or insufficient permissions.'},
+        status=status.HTTP_401_UNAUTHORIZED,
+    )
 
 
 @api_view(['POST'])
+@permission_classes([AllowAny])
 def complaint_by_token(request):
     token = request.data.get('token')
     try:
@@ -102,7 +126,13 @@ def complaint_by_token(request):
 
 
 @api_view(['PATCH'])
+@authentication_classes([JWTAuthentication])
+@permission_classes([AllowAny])
 def complaint_feedback(request, id):
+    denied = staff_required_response(request)
+    if denied:
+        return denied
+
     try:
         complaint = Complaint.objects.get(pk=id)
     except Complaint.DoesNotExist:
@@ -123,7 +153,13 @@ def complaint_feedback(request, id):
 
 
 @api_view(['PATCH'])
+@authentication_classes([JWTAuthentication])
+@permission_classes([AllowAny])
 def update_complaint_status(request, id):
+    denied = staff_required_response(request)
+    if denied:
+        return denied
+
     try:
         complaint = Complaint.objects.get(pk=id)
     except Complaint.DoesNotExist:

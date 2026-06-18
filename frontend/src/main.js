@@ -5,7 +5,7 @@ import { logoHtml } from '@/components/brand'
 import { renderHome } from '@/pages/home'
 import { renderSubmit } from '@/pages/submit'
 import { renderTrack } from '@/pages/track'
-import { renderAdmin, isAdminLoggedIn } from '@/pages/admin'
+import { renderAdmin, isAdminLoggedIn, clearAdminSession } from '@/pages/admin'
 
 const routes = {
   home: renderHome,
@@ -48,7 +48,7 @@ function buildHeaderMenu(navigate) {
         {
           label: 'Sign out',
           onSelect: () => {
-            sessionStorage.removeItem('whispr_admin')
+            clearAdminSession()
             navigate('home')
           },
         },

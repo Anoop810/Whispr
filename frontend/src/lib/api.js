@@ -1,10 +1,17 @@
 const API_BASE = (import.meta.env.VITE_API_URL || '/api').replace(/\/+$/, '')
+export const ADMIN_TOKEN_KEY = 'whispr_admin_token'
 
-async function request(path, options = {}) {
+function authHeaders() {
+  const token = sessionStorage.getItem(ADMIN_TOKEN_KEY)
+  return token ? { Authorization: `Bearer ${token}` } : {}
+}
+
+async function request(path, options = {}, { auth = false } = {}) {
   const url = `${API_BASE}${path.startsWith('/') ? path : `/${path}`}`
   const response = await fetch(url, {
     headers: {
       'Content-Type': 'application/json',
+      ...(auth ? authHeaders() : {}),
       ...options.headers,
     },
     ...options,
@@ -12,8 +19,17 @@ async function request(path, options = {}) {
 
   const data = await response.json().catch(() => ({}))
 
-  if (!response.ok) {
-    throw new Error(data.error || data.detail || 'Request failed')
+  if (response.status === 401 && auth) {
+    sessionStorage.removeItem(ADMIN_TOKEN_KEY)
+  }
+
+    if (!response.ok) {
+    const fallback = response.status === 401
+      ? 'Invalid credentials or insufficient permissions.'
+      : response.status >= 500
+        ? 'Server error. Please try again later.'
+        : 'Request failed'
+    throw new Error(data.error || data.detail || fallback)
   }
 
   return data
@@ -35,18 +51,18 @@ export const api = {
   },
 
   listActiveComplaints() {
-    return request('/complaints/?view=active')
+    return request('/complaints/?view=active', {}, { auth: true })
   },
 
   listResolvedComplaints() {
-    return request('/complaints/?view=resolved')
+    return request('/complaints/?view=resolved', {}, { auth: true })
   },
 
   saveFeedback(id, feedback) {
     return request(`/complaints/${id}/feedback/`, {
       method: 'PATCH',
       body: JSON.stringify({ feedback }),
-    })
+    }, { auth: true })
   },
 
   updateComplaintStatus(id, status, feedback = '') {
@@ -57,7 +73,7 @@ export const api = {
     return request(`/complaints/${id}/status/`, {
       method: 'PATCH',
       body: JSON.stringify(body),
-    })
+    }, { auth: true })
   },
 
   adminLogin(username, password) {
